@@ -9,13 +9,9 @@ import {
   TableRow,
   Typography,
   Box,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Button,
 } from "@mui/material";
 
-const BacktestResults = ({ results }) => {
+const BacktestResults = ({ results, selectedTimeframe }) => {
   if (!results || Object.keys(results).length === 0) {
     return (
       <Typography variant="body1" align="center">
@@ -25,6 +21,7 @@ const BacktestResults = ({ results }) => {
   }
 
   const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0.00";
     return new Intl.NumberFormat("tr-TR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -32,102 +29,118 @@ const BacktestResults = ({ results }) => {
   };
 
   const getResultColor = (value) => {
+    if (value === undefined || value === null) return "text.primary";
     return value >= 0 ? "success.main" : "error.main";
+  };
+
+  const calculatePriceChange = (startPrice, endPrice) => {
+    if (!startPrice || !endPrice) return 0;
+    return ((endPrice - startPrice) / startPrice) * 100;
+  };
+
+  const calculateStrategyPerformance = (trades) => {
+    if (!trades || trades.length === 0) return 0;
+    const lastTrade = trades[trades.length - 1];
+    return ((lastTrade.balance - 10000) / 10000) * 100;
+  };
+
+  const timeframeLabels = {
+    15: "15 Dakika",
+    60: "1 Saat",
+    240: "4 Saat",
+    D: "1 Gün",
   };
 
   return (
     <Box>
-      {Object.entries(results).map(([symbol, timeframes]) => (
-        <Accordion key={symbol} defaultExpanded>
-          <AccordionSummary
-            expandIcon={
-              <Button size="small" sx={{ minWidth: "auto", p: 0 }}>
-                ▼
-              </Button>
-            }
-          >
-            <Typography variant="h6">{symbol}</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
+      {Object.entries(results).map(([symbol, timeframes]) => {
+        const timeframeData = timeframes[selectedTimeframe];
+        if (!timeframeData) return null;
+
+        const priceChange = calculatePriceChange(
+          timeframeData.start_price,
+          timeframeData.end_price
+        );
+
+        const strategyPerformance = calculateStrategyPerformance(
+          timeframeData.trades
+        );
+
+        return (
+          <Box key={symbol}>
+            <Typography variant="h6" gutterBottom>
+              {symbol} -{" "}
+              {timeframeLabels[selectedTimeframe] || selectedTimeframe}
+            </Typography>
             <TableContainer component={Paper}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Zaman Aralığı</TableCell>
-                    <TableCell align="right">Başlangıç Fiyatı ($)</TableCell>
-                    <TableCell align="right">Bitiş Fiyatı ($)</TableCell>
-                    <TableCell align="right">Fiyat Değişimi (%)</TableCell>
-                    <TableCell align="right">Toplam Kar/Zarar ($)</TableCell>
-                    <TableCell align="right">
-                      Strateji Performansı (%)
-                    </TableCell>
-                    <TableCell align="right">İşlem Hacmi ($)</TableCell>
-                    <TableCell align="right">İşlem Sayısı</TableCell>
-                    <TableCell align="right">Başarılı İşlem</TableCell>
-                    <TableCell align="right">Başarı Oranı (%)</TableCell>
-                    <TableCell align="right">Max Drawdown (%)</TableCell>
+                    <TableCell>Başlangıç Fiyatı ($)</TableCell>
+                    <TableCell>Bitiş Fiyatı ($)</TableCell>
+                    <TableCell>Fiyat Değişimi (%)</TableCell>
+                    <TableCell>Toplam Kar/Zarar ($)</TableCell>
+                    <TableCell>Strateji Performansı (%)</TableCell>
+                    <TableCell>İşlem Sayısı</TableCell>
+                    <TableCell>Başarılı İşlem</TableCell>
+                    <TableCell>Başarı Oranı (%)</TableCell>
+                    <TableCell>Max Drawdown (%)</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(timeframes).map(([timeframe, data]) => (
-                    <TableRow key={timeframe}>
-                      <TableCell component="th" scope="row">
-                        {timeframe}
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatNumber(data.start_price)}
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatNumber(data.end_price)}
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color: getResultColor(data.price_change_percentage),
-                        }}
-                      >
-                        {formatNumber(data.price_change_percentage)}%
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{ color: getResultColor(data.total_profit) }}
-                      >
-                        {formatNumber(data.total_profit)}
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          color: getResultColor(data.total_profit_percentage),
-                        }}
-                      >
-                        {formatNumber(data.total_profit_percentage)}%
-                      </TableCell>
-                      <TableCell align="right">
-                        {formatNumber(data.total_volume)}
-                      </TableCell>
-                      <TableCell align="right">{data.total_trades}</TableCell>
-                      <TableCell align="right">{data.winning_trades}</TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{ color: getResultColor(data.win_rate - 50) }}
-                      >
-                        {formatNumber(data.win_rate)}%
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: "error.main" }}>
-                        {formatNumber(data.max_drawdown)}%
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  <TableRow>
+                    <TableCell>
+                      {formatNumber(timeframeData.start_price)}
+                    </TableCell>
+                    <TableCell>
+                      {formatNumber(timeframeData.end_price)}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: getResultColor(priceChange),
+                      }}
+                    >
+                      {formatNumber(priceChange)}%
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: getResultColor(timeframeData.total_profit),
+                      }}
+                    >
+                      {formatNumber(timeframeData.total_profit)}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: getResultColor(strategyPerformance),
+                      }}
+                    >
+                      {formatNumber(strategyPerformance)}%
+                    </TableCell>
+                    <TableCell>{timeframeData.total_trades || 0}</TableCell>
+                    <TableCell>{timeframeData.winning_trades || 0}</TableCell>
+                    <TableCell
+                      sx={{
+                        color: getResultColor(
+                          (timeframeData.win_rate || 0) - 50
+                        ),
+                      }}
+                    >
+                      {formatNumber(timeframeData.win_rate)}%
+                    </TableCell>
+                    <TableCell sx={{ color: "error.main" }}>
+                      {formatNumber(timeframeData.max_drawdown)}%
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
             <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
               Kullanılan İndikatörler:{" "}
-              {Object.values(timeframes)[0].indicators_used.join(", ")}
+              {timeframeData?.indicators_used?.join(", ") || ""}
             </Typography>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+          </Box>
+        );
+      })}
     </Box>
   );
 };

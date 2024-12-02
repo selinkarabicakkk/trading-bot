@@ -8,62 +8,114 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableContainer,
 } from "@mui/material";
 
-function TradingPanel({ balance, position, trades, currentPrice, lastSignal }) {
+function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
+  if (
+    !backtestResults ||
+    !backtestResults[selectedSymbol] ||
+    !backtestResults[selectedSymbol][selectedTimeframe]
+  ) {
+    return (
+      <Grid item xs={12}>
+        <Paper elevation={4} sx={{ p: 2, mb: 4 }}>
+          <Typography variant="body1" align="center">
+            Backtest sonuçları bekleniyor...
+          </Typography>
+        </Paper>
+      </Grid>
+    );
+  }
+
+  const timeframeData = backtestResults[selectedSymbol][selectedTimeframe];
+  const trades = timeframeData.trades || [];
+  const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
+
+  const currentBalance = lastTrade ? lastTrade.balance : 10000;
+  const position = null;
+
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0.00";
+    return new Intl.NumberFormat("tr-TR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      useGrouping: false,
+    }).format(num);
+  };
+
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+  };
+
   return (
     <Grid item xs={12}>
       <Paper elevation={4} sx={{ p: 2, mb: 4 }}>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={5}>
             <Typography variant="h6">
-              Bakiye: {balance.toFixed(2)} USDT
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Typography variant="h6">
-              Güncel Fiyat: {currentPrice?.toFixed(2)} USDT
+              Başlangıç Bakiyesi: 10000.00 USDT
             </Typography>
           </Grid>
           <Grid item xs={12} md={4}>
             <Typography
               variant="h6"
-              color={position ? "success.main" : "text.primary"}
+              sx={{
+                color: currentBalance >= 10000 ? "success.main" : "error.main",
+              }}
             >
-              {position
-                ? `Pozisyon: ${position.amount} @ ${position.entryPrice}`
-                : "Pozisyon Yok"}
+              Güncel Bakiye: {formatNumber(currentBalance)} USDT
             </Typography>
           </Grid>
 
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
-              Son İşlemler
+              Tüm İşlemler (
+              {trades.filter((trade) => trade.type === "SELL").length})
             </Typography>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Tip</TableCell>
-                  <TableCell>Fiyat</TableCell>
-                  <TableCell>Miktar</TableCell>
-                  <TableCell>Sinyal</TableCell>
-                  <TableCell>Kar/Zarar</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {trades.slice(-5).map((trade, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{trade.type}</TableCell>
-                    <TableCell>{trade.price.toFixed(2)}</TableCell>
-                    <TableCell>{trade.amount.toFixed(8)}</TableCell>
-                    <TableCell>{trade.signal}</TableCell>
-                    <TableCell>
-                      {trade.pnl ? `${trade.pnl.toFixed(2)} USDT` : "-"}
-                    </TableCell>
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>İşlem No</TableCell>
+                    <TableCell>Tarih</TableCell>
+                    <TableCell>Fiyat</TableCell>
+                    <TableCell>Kar/Zarar</TableCell>
+                    <TableCell>Bakiye</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {trades
+                    .filter((trade) => trade.type === "SELL")
+                    .map((trade, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{formatDate(trade.timestamp)}</TableCell>
+                        <TableCell>{formatNumber(trade.price)}</TableCell>
+                        <TableCell
+                          sx={{
+                            color:
+                              trade.trade_profit >= 0
+                                ? "success.main"
+                                : "error.main",
+                          }}
+                        >
+                          {formatNumber(trade.trade_profit)} USDT
+                        </TableCell>
+                        <TableCell>
+                          {formatNumber(trade.balance)} USDT
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Grid>
         </Grid>
       </Paper>

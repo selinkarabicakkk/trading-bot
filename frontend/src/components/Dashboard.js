@@ -20,8 +20,8 @@ import Layout from "./Layout";
 function Dashboard() {
   const [backtestResults, setBacktestResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [selectedSymbols, setSelectedSymbols] = useState(["BTCUSDT"]);
-  const [selectedTimeframes, setSelectedTimeframes] = useState(["1d"]);
+  const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("60");
   const [activeIndicators, setActiveIndicators] = useState([]);
 
   const allSymbols = [
@@ -33,23 +33,16 @@ function Dashboard() {
     "FETUSDT",
   ];
   const allTimeframes = [
-    { value: "1", label: "1 Dakika" },
-    { value: "5", label: "5 Dakika" },
     { value: "15", label: "15 Dakika" },
-    { value: "30", label: "30 Dakika" },
     { value: "60", label: "1 Saat" },
     { value: "240", label: "4 Saat" },
     { value: "D", label: "1 Gün" },
-    { value: "W", label: "1 Hafta" },
-    { value: "M", label: "1 Ay" },
   ];
 
   // Trading Panel için örnek veriler
   const tradingData = {
     balance: 10000,
-    position: null,
     trades: [],
-    currentPrice: 45000,
     lastSignal: null,
   };
 
@@ -71,8 +64,8 @@ function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          symbols: selectedSymbols,
-          timeframes: selectedTimeframes,
+          symbols: [selectedSymbol],
+          timeframes: [selectedTimeframe],
           indicators: activeIndicators.map((ind) => ({
             type: ind.type,
             params: ind.params,
@@ -85,7 +78,10 @@ function Dashboard() {
       }
 
       const data = await response.json();
-      setBacktestResults(data);
+      setBacktestResults(null);
+      setTimeout(() => {
+        setBacktestResults(data);
+      }, 100);
     } catch (error) {
       console.error("Backtest sonuçları alınamadı:", error);
       setBacktestResults(null);
@@ -100,41 +96,48 @@ function Dashboard() {
         <Grid container spacing={3}>
           {/* Sol Taraf */}
           <Grid item xs={12} md={8}>
-            {/* Sembol ve Interval Seçici */}
+            {/* Sembol ve Timeframe Seçimi */}
             <Box sx={{ mb: 3 }}>
-              <Paper elevation={4} sx={{ p: 2, display: "flex", gap: 2 }}>
-                <FormControl sx={{ flex: 2 }}>
-                  <InputLabel>Sembol</InputLabel>
-                  <Select
-                    multiple
-                    value={selectedSymbols}
-                    label="Sembol"
-                    onChange={(e) => setSelectedSymbols(e.target.value)}
-                  >
-                    {allSymbols.map((symbol) => (
-                      <MenuItem key={symbol} value={symbol}>
-                        {symbol}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl sx={{ flex: 1 }}>
-                  <InputLabel>Interval</InputLabel>
-                  <Select
-                    multiple
-                    value={selectedTimeframes}
-                    label="Interval"
-                    onChange={(e) => setSelectedTimeframes(e.target.value)}
-                  >
-                    {allTimeframes.map((tf) => (
-                      <MenuItem key={tf.value} value={tf.value}>
-                        {tf.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Paper>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Sembol</InputLabel>
+                    <Select
+                      value={selectedSymbol}
+                      onChange={(e) => {
+                        setSelectedSymbol(e.target.value);
+                        setBacktestResults(null);
+                      }}
+                      label="Sembol"
+                    >
+                      {allSymbols.map((symbol) => (
+                        <MenuItem key={symbol} value={symbol}>
+                          {symbol}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Zaman Aralığı</InputLabel>
+                    <Select
+                      value={selectedTimeframe}
+                      onChange={(e) => {
+                        setSelectedTimeframe(e.target.value);
+                        setBacktestResults(null);
+                      }}
+                      label="Zaman Aralığı"
+                    >
+                      {allTimeframes.map((tf) => (
+                        <MenuItem key={tf.value} value={tf.value}>
+                          {tf.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
             </Box>
 
             {/* TradingView Grafiği */}
@@ -147,16 +150,24 @@ function Dashboard() {
                 }}
               >
                 <TradingViewChart
-                  symbol={selectedSymbols[0]}
-                  interval={selectedTimeframes[0]}
+                  key={`${selectedSymbol}-${selectedTimeframe}-${
+                    backtestResults ? "backtest" : "initial"
+                  }`}
+                  symbol={selectedSymbol}
+                  interval={selectedTimeframe}
                   theme="dark"
+                  backtestResults={backtestResults}
                 />
               </Paper>
             </Box>
 
             {/* Trading Panel */}
             <Box sx={{ mb: 3 }}>
-              <TradingPanel {...tradingData} />
+              <TradingPanel
+                backtestResults={backtestResults}
+                selectedSymbol={selectedSymbol}
+                selectedTimeframe={selectedTimeframe}
+              />
             </Box>
           </Grid>
 
@@ -171,11 +182,7 @@ function Dashboard() {
                 <Button
                   variant="contained"
                   onClick={fetchBacktestResults}
-                  disabled={
-                    loading ||
-                    selectedSymbols.length === 0 ||
-                    selectedTimeframes.length === 0
-                  }
+                  disabled={loading || !selectedSymbol || !selectedTimeframe}
                   size="large"
                   fullWidth
                 >
@@ -188,7 +195,10 @@ function Dashboard() {
                   <Typography>İşlem yapılıyor, lütfen bekleyin...</Typography>
                 </Box>
               ) : backtestResults ? (
-                <BacktestResults results={backtestResults} />
+                <BacktestResults
+                  results={backtestResults}
+                  selectedTimeframe={selectedTimeframe}
+                />
               ) : (
                 <Typography align="center">
                   Backtest başlatmak için butona tıklayın.

@@ -18,13 +18,6 @@ import {
 } from "@mui/material";
 
 const AVAILABLE_INDICATORS = {
-  bollinger: {
-    name: "Bollinger Bands",
-    params: {
-      period: { default: 20, min: 1, max: 100, label: "Periyot" },
-      stdDev: { default: 2, min: 0.1, max: 5, label: "Standart Sapma" },
-    },
-  },
   rsi: {
     name: "RSI",
     params: {
@@ -39,32 +32,12 @@ const AVAILABLE_INDICATORS = {
       period: { default: 20, min: 1, max: 200, label: "Periyot" },
     },
   },
-  ema: {
-    name: "EMA",
-    params: {
-      period: { default: 20, min: 1, max: 200, label: "Periyot" },
-    },
-  },
   macd: {
     name: "MACD",
     params: {
-      fastPeriod: { default: 12, min: 1, max: 50, label: "Hızlı Periyot" },
-      slowPeriod: { default: 26, min: 1, max: 100, label: "Yavaş Periyot" },
-      signalPeriod: { default: 9, min: 1, max: 50, label: "Sinyal Periyodu" },
-    },
-  },
-  supertrend: {
-    name: "SuperTrend",
-    params: {
-      period: { default: 10, min: 1, max: 50, label: "Periyot" },
-      multiplier: { default: 3, min: 0.1, max: 10, label: "Çarpan" },
-    },
-  },
-  dmi: {
-    name: "DMI",
-    params: {
-      period: { default: 14, min: 1, max: 50, label: "Periyot" },
-      adxPeriod: { default: 14, min: 1, max: 50, label: "ADX Periyodu" },
+      fast_period: { default: 12, min: 1, max: 50, label: "Hızlı Periyot" },
+      slow_period: { default: 26, min: 1, max: 100, label: "Yavaş Periyot" },
+      signal_period: { default: 9, min: 1, max: 50, label: "Sinyal Periyodu" },
     },
   },
 };
@@ -98,21 +71,39 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
   };
 
   const handleSettingsOpen = (indicator) => {
-    setSelectedIndicator(indicator);
+    setSelectedIndicator({ ...indicator });
     setIsSettingsDialogOpen(true);
   };
 
-  const handleParamChange = (id, param, value) => {
-    setActiveIndicators((prev) =>
-      prev.map((ind) =>
-        ind.id === id
-          ? {
-              ...ind,
-              params: { ...ind.params, [param]: Number(value) },
-            }
-          : ind
-      )
-    );
+  const handleParamChange = (param, value) => {
+    if (selectedIndicator) {
+      const numValue = Number(value);
+      const config = AVAILABLE_INDICATORS[selectedIndicator.type].params[param];
+
+      // Değer sınırlarını kontrol et
+      if (numValue >= config.min && numValue <= config.max) {
+        const updatedIndicator = {
+          ...selectedIndicator,
+          params: {
+            ...selectedIndicator.params,
+            [param]: numValue,
+          },
+        };
+        setSelectedIndicator(updatedIndicator);
+
+        // Ana indikatör listesini güncelle
+        setActiveIndicators((prev) =>
+          prev.map((ind) =>
+            ind.id === selectedIndicator.id ? updatedIndicator : ind
+          )
+        );
+      }
+    }
+  };
+
+  const handleSettingsClose = () => {
+    setIsSettingsDialogOpen(false);
+    setSelectedIndicator(null);
   };
 
   return (
@@ -194,7 +185,7 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
 
       <Dialog
         open={isSettingsDialogOpen}
-        onClose={() => setIsSettingsDialogOpen(false)}
+        onClose={handleSettingsClose}
         maxWidth="sm"
         fullWidth
       >
@@ -214,17 +205,11 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
                       label={config.label}
                       type="number"
                       value={selectedIndicator.params[param]}
-                      onChange={(e) =>
-                        handleParamChange(
-                          selectedIndicator.id,
-                          param,
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => handleParamChange(param, e.target.value)}
                       inputProps={{
                         min: config.min,
                         max: config.max,
-                        step: param.includes("Period") ? 1 : 0.1,
+                        step: param.includes("Period") ? 1 : 1,
                       }}
                     />
                   </Grid>
@@ -232,9 +217,7 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
               </Grid>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setIsSettingsDialogOpen(false)}>
-                Kapat
-              </Button>
+              <Button onClick={handleSettingsClose}>Kapat</Button>
             </DialogActions>
           </>
         )}
