@@ -1,26 +1,48 @@
 from config import client
 import pandas as pd
-from datetime import datetime
 import logging
+from typing import Optional
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Mainnet'den veri çekme fonksiyonu
-def fetch_data(symbol, interval="1h", limit=100):
+def convert_interval(interval: str) -> str:
+    """Interval dönüşümü"""
+    interval_map = {
+        "1": "1m",
+        "5": "5m",
+        "15": "15m",
+        "30": "30m",
+        "60": "1h",
+        "240": "4h",
+        "D": "1d",
+        "W": "1w",
+        "M": "1M"
+    }
+    mapped_interval = interval_map.get(interval)
+    if not mapped_interval:
+        logger.warning(f"Bilinmeyen interval: {interval}, varsayılan olarak 1d kullanılıyor")
+        return "1d"
+    return mapped_interval
+
+def fetch_data(symbol: str, interval: str = "1d", limit: int = 1000) -> Optional[pd.DataFrame]:
+    """Binance'den veri çek"""
     try:
         logger.info(f"Veri çekme başladı: {symbol} - {interval}")
+        
+        # Interval dönüşümü
+        binance_interval = convert_interval(interval)
+        logger.info(f"Dönüştürülen interval: {binance_interval}")
         
         # Mainnet'den veri çek
         klines = client.get_klines(
             symbol=symbol.upper(),
-            interval=interval,
+            interval=binance_interval,
             limit=limit
         )
         
         if not klines:
-            logger.warning("Binance'den veri alınamadı")
-            return pd.DataFrame()
+            logger.warning(f"Veri alınamadı: {symbol} - {binance_interval}")
+            return None
             
         logger.info(f"Binance'den {len(klines)} adet veri alındı")
         
@@ -33,17 +55,28 @@ def fetch_data(symbol, interval="1h", limit=100):
         
         # Veri tiplerini düzenle
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df["open"] = pd.to_numeric(df["open"])
-        df["high"] = pd.to_numeric(df["high"])
-        df["low"] = pd.to_numeric(df["low"])
-        df["close"] = pd.to_numeric(df["close"])
-        df["volume"] = pd.to_numeric(df["volume"])
+        df.set_index("timestamp", inplace=True)
         
+        numeric_columns = ["open", "high", "low", "close", "volume"]
+        for col in numeric_columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # NaN değerleri temizle
+        df = df.dropna(subset=numeric_columns)
+        
+        if df.empty:
+            logger.warning("Veri temizleme sonrası DataFrame boş")
+            return None
+            
         # Sadece gerekli kolonları döndür
-        return df[["timestamp", "open", "high", "low", "close", "volume"]]
+        result_df = df[["open", "high", "low", "close", "volume"]]
+        logger.info(f"İşlenmiş veri boyutu: {len(result_df)}")
+        
+        return result_df
+        
     except Exception as e:
         logger.error(f"Veri çekme hatası: {str(e)}")
-        raise Exception(f"Veri çekme hatası: {str(e)}")
+        return None
 
 # Desteklenen sembolleri listelemek için bir fonksiyon
 def get_valid_symbols():

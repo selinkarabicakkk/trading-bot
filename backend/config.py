@@ -1,31 +1,39 @@
 from binance.client import Client
-import urllib3
-import certifi
-import ssl
-import requests
+import os
+from dotenv import load_dotenv
+import logging
 
-# SSL uyarılarını devre dışı bırak
-urllib3.disable_warnings()
+# Logging ayarları
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# .env dosyasından API anahtarlarını yükle
+load_dotenv()
 
 # Binance API Key ve Secret
-api_key = "m6exoH1EIHknDl7o4x0rtUvKeVKCChi4cjDN1oDtLygLOlJ6GyKdTYMNo3C8cS49"
-api_secret = "1zB94LaPOA90w8omvPMed4PxXuS6pp13hj2WnmFWhAIYvBm7eidKxcXwVmPFP2sx"
+api_key = os.getenv('BINANCE_API_KEY', '')
+api_secret = os.getenv('BINANCE_API_SECRET', '')
+
+if not api_key or not api_secret:
+    logger.warning("API anahtarları bulunamadı. Test modu kullanılacak.")
 
 # Client oluştur
 client = Client(
     api_key, 
     api_secret,
     tld='com',
-    testnet=False,  # Mainnet kullan
-    requests_params={
-        'verify': False,  # SSL doğrulamasını devre dışı bırak
-        'timeout': 30
-    }
+    testnet=False  # Mainnet kullan
 )
 
-# Hata ayıklama için bağlantı testi
-try:
-    client.ping()
-    print("Binance bağlantısı başarılı")
-except Exception as e:
-    print(f"Binance bağlantı hatası: {str(e)}")
+# Bağlantı testi
+def test_connection():
+    try:
+        client.ping()
+        logger.info("Binance bağlantısı başarılı")
+        return True
+    except Exception as e:
+        logger.error(f"Binance bağlantı hatası: {str(e)}")
+        return False
+
+# Başlangıçta bağlantıyı test et
+test_connection()

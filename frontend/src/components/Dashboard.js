@@ -20,8 +20,8 @@ import Layout from "./Layout";
 function Dashboard() {
   const [backtestResults, setBacktestResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [selectedSymbols, setSelectedSymbols] = useState(["BTCUSDT"]);
-  const [selectedTimeframes, setSelectedTimeframes] = useState(["1d"]);
+  const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("D");
   const [activeIndicators, setActiveIndicators] = useState([]);
 
   const allSymbols = [
@@ -71,8 +71,8 @@ function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          symbols: selectedSymbols,
-          timeframes: selectedTimeframes,
+          symbols: [selectedSymbol],
+          timeframes: [selectedTimeframe],
           indicators: activeIndicators.map((ind) => ({
             type: ind.type,
             params: ind.params,
@@ -106,10 +106,9 @@ function Dashboard() {
                 <FormControl sx={{ flex: 2 }}>
                   <InputLabel>Sembol</InputLabel>
                   <Select
-                    multiple
-                    value={selectedSymbols}
+                    value={selectedSymbol}
                     label="Sembol"
-                    onChange={(e) => setSelectedSymbols(e.target.value)}
+                    onChange={(e) => setSelectedSymbol(e.target.value)}
                   >
                     {allSymbols.map((symbol) => (
                       <MenuItem key={symbol} value={symbol}>
@@ -122,10 +121,9 @@ function Dashboard() {
                 <FormControl sx={{ flex: 1 }}>
                   <InputLabel>Interval</InputLabel>
                   <Select
-                    multiple
-                    value={selectedTimeframes}
+                    value={selectedTimeframe}
                     label="Interval"
-                    onChange={(e) => setSelectedTimeframes(e.target.value)}
+                    onChange={(e) => setSelectedTimeframe(e.target.value)}
                   >
                     {allTimeframes.map((tf) => (
                       <MenuItem key={tf.value} value={tf.value}>
@@ -147,16 +145,21 @@ function Dashboard() {
                 }}
               >
                 <TradingViewChart
-                  symbol={selectedSymbols[0]}
-                  interval={selectedTimeframes[0]}
+                  symbol={selectedSymbol}
+                  interval={selectedTimeframe}
                   theme="dark"
+                  backtestResults={backtestResults}
                 />
               </Paper>
             </Box>
 
             {/* Trading Panel */}
             <Box sx={{ mb: 3 }}>
-              <TradingPanel {...tradingData} />
+              <TradingPanel
+                backtestResults={backtestResults}
+                selectedSymbol={selectedSymbol}
+                selectedTimeframe={selectedTimeframe}
+              />
             </Box>
           </Grid>
 
@@ -171,11 +174,7 @@ function Dashboard() {
                 <Button
                   variant="contained"
                   onClick={fetchBacktestResults}
-                  disabled={
-                    loading ||
-                    selectedSymbols.length === 0 ||
-                    selectedTimeframes.length === 0
-                  }
+                  disabled={loading || !selectedSymbol || !selectedTimeframe}
                   size="large"
                   fullWidth
                 >
@@ -188,7 +187,10 @@ function Dashboard() {
                   <Typography>İşlem yapılıyor, lütfen bekleyin...</Typography>
                 </Box>
               ) : backtestResults ? (
-                <BacktestResults results={backtestResults} />
+                <BacktestResults
+                  results={backtestResults}
+                  selectedTimeframe={selectedTimeframe}
+                />
               ) : (
                 <Typography align="center">
                   Backtest başlatmak için butona tıklayın.
