@@ -9,6 +9,8 @@ const TradingViewChart = ({
   interval = "D",
 }) => {
   const onLoadScriptRef = useRef();
+  const chartRef = useRef();
+  const widgetRef = useRef();
 
   useEffect(() => {
     onLoadScriptRef.current = createWidget;
@@ -20,16 +22,34 @@ const TradingViewChart = ({
         script.src = "https://s3.tradingview.com/tv.js";
         script.type = "text/javascript";
         script.onload = resolve;
+        script.onerror = () => {
+          console.error("TradingView script yüklenemedi");
+          resolve();
+        };
         document.head.appendChild(script);
       });
     }
 
-    tvScriptLoadingPromise.then(
-      () => onLoadScriptRef.current && onLoadScriptRef.current()
-    );
+    tvScriptLoadingPromise
+      .then(() => onLoadScriptRef.current && onLoadScriptRef.current())
+      .catch((error) => {
+        console.error("TradingView widget yüklenirken hata:", error);
+      });
 
     return () => {
       onLoadScriptRef.current = null;
+      if (chartRef.current) {
+        try {
+          const container = document.getElementById("tradingview-widget");
+          if (container && container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+          chartRef.current = null;
+          widgetRef.current = null;
+        } catch (e) {
+          console.error("Chart temizlenirken hata:", e);
+        }
+      }
     };
 
     function createWidget() {
