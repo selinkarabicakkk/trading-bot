@@ -20,7 +20,7 @@
         style-src 'self' 'unsafe-inline' https://*.tradingview.com;
         img-src 'self' data: https://*.tradingview.com;
         font-src 'self' https://*.tradingview.com;
-        connect-src 'self' http://localhost:5000 http://localhost:8000 https://*.tradingview.com wss://*.tradingview.com;
+        connect-src 'self' http://localhost:5000 http://localhost:8000 ws://localhost:8000 wss://localhost:8000 https://*.tradingview.com wss://*.tradingview.com;
         frame-src 'self' https://*.tradingview.com;
         worker-src 'self' blob:;
       "

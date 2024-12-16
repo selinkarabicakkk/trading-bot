@@ -35,56 +35,106 @@ class BacktestRunner:
             logger.error(f"İndikatör hesaplama hatası: {str(e)}")
             raise
 
-    def generate_signals(self, df: pd.DataFrame, indicators: List[Dict[str, Any]]) -> pd.Series:
-        """Her indikatör için sinyal üret ve kombine et"""
+    def generate_signals(self, df: pd.DataFrame, indicators: List[Dict]) -> pd.Series:
+        """İndikatörlere göre alım/satım sinyalleri üret"""
         try:
-            logger.info(f"Sinyal üretimi başlıyor... İndikatör sayısı: {len(indicators)}")
+            logger.info("Sinyal üretimi başlıyor... İndikatör sayısı: %d", len(indicators))
+            logger.info("Aktif indikatörler: %s", [ind["type"] for ind in indicators])
             
-            # Her indikatör için sinyal kolonlarını topla
-            indicator_signals = []
-            active_indicators = []
-            
-            for indicator in indicators:
-                indicator_type = indicator.get("type", "").lower().strip()
-                signal_column = f"{indicator_type}_signal"
-                
-                if signal_column in df.columns:
-                    indicator_signals.append(df[signal_column])
-                    active_indicators.append(indicator_type)
-                else:
-                    logger.warning(f"Sinyal kolonu bulunamadı: {signal_column}")
-            
-            logger.info(f"Aktif indikatörler: {active_indicators}")
-            
-            if not indicator_signals:
-                logger.error("Hiç sinyal bulunamadı")
-                raise ValueError("Sinyal üretilemedi")
-            
-            # Sinyal kombinasyonlarını hesapla
-            signal_sum = sum(indicator_signals)
-            combined_signal = pd.Series(0, index=df.index)
-            
-            # Tek indikatör varsa direkt onun sinyallerini kullan
-            if len(indicator_signals) == 1:
+            if len(indicators) == 1:
                 logger.info("Tek indikatör modu")
-                combined_signal = indicator_signals[0]
-            else:
-                # Birden fazla indikatör için çoğunluk oylaması
-                threshold = len(indicator_signals) // 2
-                combined_signal[signal_sum > threshold] = 1  # Çoğunluk alış diyorsa
-                combined_signal[signal_sum < -threshold] = -1  # Çoğunluk satış diyorsa
+                indicator = indicators[0]
+                ind_type = indicator["type"].lower()
+                
+                if ind_type == "macd":
+                    # MACD sinyalleri
+                    macd = df['macd']
+                    signal = df['macd_signal']
+                    hist = df['macd_hist']
+                    
+                    # Sinyal üretimi
+                    signals = pd.Series(0, index=df.index)
+                    
+                    # MACD çizgisinin sinyal çizgisini yukarı kesmesi = Alış
+                    buy_signal = (macd > signal) & (macd.shift(1) <= signal.shift(1))
+                    # MACD çizgisinin sinyal çizgisini aşağı kesmesi = Satış
+                    sell_signal = (macd < signal) & (macd.shift(1) >= signal.shift(1))
+                    
+                    signals[buy_signal] = 1
+                    signals[sell_signal] = -1
+                    
+                    # Son değerleri logla
+                    last_idx = df.index[-1]
+                    logger.info(f"Son MACD değerleri - MACD: {macd[last_idx]:.2f}, Signal: {signal[last_idx]:.2f}, Hist: {hist[last_idx]:.2f}")
+                    if signals[last_idx] != 0:
+                        logger.info(f"Sinyal üretildi: {'AL' if signals[last_idx] == 1 else 'SAT'}")
+                    
+                    return signals
+                    
+                elif ind_type == "rsi":
+                    # RSI sinyalleri
+                    rsi = df['rsi']
+                    signals = pd.Series(0, index=df.index)
+                    
+                    # Aşırı satım bölgesinden çıkış = Alış
+                    buy_signal = (rsi > 30) & (rsi.shift(1) <= 30)
+                    # Aşırı alım bölgesinden çıkış = Satış
+                    sell_signal = (rsi < 70) & (rsi.shift(1) >= 70)
+                    
+                    signals[buy_signal] = 1
+                    signals[sell_signal] = -1
+                    return signals
+                    
+                elif ind_type == "bollinger":
+                    # Bollinger sinyalleri
+                    close = df['close']
+                    upper = df['bb_upper']
+                    lower = df['bb_lower']
+                    signals = pd.Series(0, index=df.index)
+                    
+                    # Alt bandın altından dönüş = Alış
+                    buy_signal = (close > lower) & (close.shift(1) <= lower.shift(1))
+                    # Üst bandın üstünden dönüş = Satış
+                    sell_signal = (close < upper) & (close.shift(1) >= upper.shift(1))
+                    
+                    signals[buy_signal] = 1
+                    signals[sell_signal] = -1
+                    return signals
+                    
+                elif ind_type == "sma":
+                    # SMA sinyalleri
+                    close = df['close']
+                    sma = df['sma']
+                    signals = pd.Series(0, index=df.index)
+                    
+                    # Fiyat SMA'yı yukarı kesiyor = Alış
+                    buy_signal = (close > sma) & (close.shift(1) <= sma.shift(1))
+                    # Fiyat SMA'yı aşağı kesiyor = Satış
+                    sell_signal = (close < sma) & (close.shift(1) >= sma.shift(1))
+                    
+                    signals[buy_signal] = 1
+                    signals[sell_signal] = -1
+                    return signals
             
-            signal_counts = {
-                "buy": len(combined_signal[combined_signal == 1]),
-                "sell": len(combined_signal[combined_signal == -1])
-            }
-            logger.info(f"Sinyal sayıları: {signal_counts}")
+            # Birden fazla indikatör için çoğunluk kararı
+            all_signals = []
+            for indicator in indicators:
+                ind_type = indicator["type"].lower()
+                signal_col = f"{ind_type}_signal"
+                if signal_col in df.columns:
+                    all_signals.append(df[signal_col])
             
-            return combined_signal
+            if all_signals:
+                # Tüm sinyallerin ortalamasını al
+                combined_signals = pd.concat(all_signals, axis=1).mean(axis=1)
+                # -0.5'ten küçük = Satış, 0.5'ten büyük = Alış
+                return pd.Series(np.where(combined_signals > 0.5, 1, np.where(combined_signals < -0.5, -1, 0)), index=df.index)
+                
+            return pd.Series(0, index=df.index)
             
         except Exception as e:
             logger.error(f"Sinyal üretme hatası: {str(e)}")
-            raise
+            return pd.Series(0, index=df.index)
 
     def run_backtest(self, df: pd.DataFrame, indicators: List[Dict[str, Any]]) -> Dict:
         """Backtest işlemini çalıştır"""

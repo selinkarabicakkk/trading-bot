@@ -16,13 +16,15 @@ import IndicatorSettings from "./IndicatorSettings";
 import TradingPanel from "./TradingPanel";
 import TradingViewChart from "./TradingViewChart";
 import Layout from "./Layout";
+import LiveTrading from "./LiveTrading";
 
 function Dashboard() {
   const [backtestResults, setBacktestResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState("BTCUSDT");
-  const [selectedTimeframe, setSelectedTimeframe] = useState("D");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("60");
   const [activeIndicators, setActiveIndicators] = useState([]);
+  const [showLiveTrading, setShowLiveTrading] = useState(false);
 
   const allSymbols = [
     "ETHUSDT",
@@ -32,25 +34,13 @@ function Dashboard() {
     "RENDERUSDT",
     "FETUSDT",
   ];
-  const allTimeframes = [
-    { value: "1", label: "1 Dakika" },
-    { value: "5", label: "5 Dakika" },
-    { value: "15", label: "15 Dakika" },
-    { value: "30", label: "30 Dakika" },
-    { value: "60", label: "1 Saat" },
-    { value: "240", label: "4 Saat" },
-    { value: "D", label: "1 Gün" },
-    { value: "W", label: "1 Hafta" },
-    { value: "M", label: "1 Ay" },
-  ];
+  const allTimeframes = ["15", "60", "240", "D"];
 
-  // Trading Panel için örnek veriler
-  const tradingData = {
-    balance: 10000,
-    position: null,
-    trades: [],
-    currentPrice: 45000,
-    lastSignal: null,
+  const timeframeLabels = {
+    15: "15 Dakika",
+    60: "1 Saat",
+    240: "4 Saat",
+    D: "1 Gün",
   };
 
   const handleIndicatorsChange = (indicators) => {
@@ -126,41 +116,63 @@ function Dashboard() {
                     onChange={(e) => setSelectedTimeframe(e.target.value)}
                   >
                     {allTimeframes.map((tf) => (
-                      <MenuItem key={tf.value} value={tf.value}>
-                        {tf.label}
+                      <MenuItem key={tf} value={tf}>
+                        {timeframeLabels[tf]}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
+
+                <Button
+                  variant="contained"
+                  color={showLiveTrading ? "error" : "primary"}
+                  onClick={() => setShowLiveTrading(!showLiveTrading)}
+                  sx={{ minWidth: 120 }}
+                >
+                  {showLiveTrading ? "Canlı İşlemi Kapat" : "Canlı İşlem"}
+                </Button>
               </Paper>
             </Box>
 
-            {/* TradingView Grafiği */}
-            <Box sx={{ mb: 3 }}>
-              <Paper
-                elevation={4}
-                sx={{
-                  height: "600px",
-                  overflow: "hidden",
-                }}
-              >
-                <TradingViewChart
-                  symbol={selectedSymbol}
-                  interval={selectedTimeframe}
-                  theme="dark"
-                  backtestResults={backtestResults}
-                />
-              </Paper>
-            </Box>
-
-            {/* Trading Panel */}
-            <Box sx={{ mb: 3 }}>
-              <TradingPanel
-                backtestResults={backtestResults}
-                selectedSymbol={selectedSymbol}
-                selectedTimeframe={selectedTimeframe}
+            {/* Canlı İşlem veya TradingView Grafiği */}
+            {showLiveTrading ? (
+              <LiveTrading
+                symbol={selectedSymbol}
+                indicators={activeIndicators.map((ind) => ({
+                  type: ind.type,
+                  params: ind.params,
+                }))}
               />
-            </Box>
+            ) : (
+              <>
+                {/* TradingView Grafiği */}
+                <Box sx={{ mb: 3 }}>
+                  <Paper
+                    elevation={4}
+                    sx={{
+                      height: "600px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <TradingViewChart
+                      symbol={selectedSymbol}
+                      interval={selectedTimeframe}
+                      theme="dark"
+                      backtestResults={backtestResults}
+                    />
+                  </Paper>
+                </Box>
+
+                {/* Trading Panel */}
+                <Box sx={{ mb: 3 }}>
+                  <TradingPanel
+                    backtestResults={backtestResults}
+                    selectedSymbol={selectedSymbol}
+                    selectedTimeframe={selectedTimeframe}
+                  />
+                </Box>
+              </>
+            )}
           </Grid>
 
           {/* Sağ Taraf */}

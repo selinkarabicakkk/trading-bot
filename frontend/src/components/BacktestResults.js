@@ -21,7 +21,6 @@ const BacktestResults = ({ results, selectedTimeframe }) => {
   }
 
   const formatNumber = (num) => {
-    if (num === undefined || num === null) return "0.00";
     return new Intl.NumberFormat("tr-TR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -29,19 +28,12 @@ const BacktestResults = ({ results, selectedTimeframe }) => {
   };
 
   const getResultColor = (value) => {
-    if (value === undefined || value === null) return "text.primary";
     return value >= 0 ? "success.main" : "error.main";
   };
 
   const calculatePriceChange = (startPrice, endPrice) => {
     if (!startPrice || !endPrice) return 0;
     return ((endPrice - startPrice) / startPrice) * 100;
-  };
-
-  const calculateStrategyPerformance = (trades) => {
-    if (!trades || trades.length === 0) return 0;
-    const lastTrade = trades[trades.length - 1];
-    return ((lastTrade.balance - 10000) / 10000) * 100;
   };
 
   const timeframeLabels = {
@@ -62,10 +54,6 @@ const BacktestResults = ({ results, selectedTimeframe }) => {
           timeframeData.end_price
         );
 
-        const strategyPerformance = calculateStrategyPerformance(
-          timeframeData.trades
-        );
-
         return (
           <Box key={symbol}>
             <Typography variant="h6" gutterBottom>
@@ -80,7 +68,6 @@ const BacktestResults = ({ results, selectedTimeframe }) => {
                     <TableCell>Bitiş Fiyatı ($)</TableCell>
                     <TableCell>Fiyat Değişimi (%)</TableCell>
                     <TableCell>Toplam Kar/Zarar ($)</TableCell>
-                    <TableCell>Strateji Performansı (%)</TableCell>
                     <TableCell>İşlem Sayısı</TableCell>
                     <TableCell>Başarılı İşlem</TableCell>
                     <TableCell>Başarı Oranı (%)</TableCell>
@@ -108,15 +95,6 @@ const BacktestResults = ({ results, selectedTimeframe }) => {
                       }}
                     >
                       {formatNumber(timeframeData.total_profit)}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: getResultColor(
-                          timeframeData.strategy_performance
-                        ),
-                      }}
-                    >
-                      {formatNumber(timeframeData.strategy_performance)}%
                     </TableCell>
                     <TableCell>{timeframeData.total_trades || 0}</TableCell>
                     <TableCell>{timeframeData.winning_trades || 0}</TableCell>

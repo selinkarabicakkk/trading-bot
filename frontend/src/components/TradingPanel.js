@@ -9,6 +9,7 @@ import {
   TableHead,
   TableRow,
   TableContainer,
+  Box,
 } from "@mui/material";
 
 function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
@@ -19,8 +20,11 @@ function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
   ) {
     return (
       <Grid item xs={12}>
-        <Paper elevation={4} sx={{ p: 2, mb: 4 }}>
-          <Typography variant="body1" align="center">
+        <Paper elevation={4} sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            İşlem Paneli
+          </Typography>
+          <Typography color="text.secondary">
             Backtest sonuçları bekleniyor...
           </Typography>
         </Paper>
@@ -33,10 +37,8 @@ function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
   const lastTrade = trades.length > 0 ? trades[trades.length - 1] : null;
 
   const currentBalance = lastTrade ? lastTrade.balance : 10000;
-  const position = null;
 
   const formatNumber = (num) => {
-    if (num === undefined || num === null) return "0.00";
     return new Intl.NumberFormat("tr-TR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -56,34 +58,39 @@ function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
 
   return (
     <Grid item xs={12}>
-      <Paper elevation={4} sx={{ p: 2, mb: 4 }}>
+      <Paper elevation={4} sx={{ p: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          İşlem Paneli
+        </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <Typography variant="h6">
+          <Grid item xs={12} md={6}>
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                width: "100%",
+                overflow: "visible",
+              }}
+            >
               Başlangıç Bakiyesi: 10000.00 USDT
             </Typography>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <Typography
               variant="h6"
+              noWrap
               sx={{
                 color: currentBalance >= 10000 ? "success.main" : "error.main",
+                width: "100%",
+                overflow: "visible",
               }}
             >
               Güncel Bakiye: {formatNumber(currentBalance)} USDT
             </Typography>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Typography
-              variant="h6"
-              color={position ? "success.main" : "text.primary"}
-            >
-              {position
-                ? `Pozisyon: ${position.amount} @ ${position.entryPrice}`
-                : "Pozisyon Yok"}
-            </Typography>
-          </Grid>
+        </Grid>
 
+        <Box sx={{ mt: 4 }}>
           <Grid item xs={12}>
             <Typography variant="h6" gutterBottom>
               Tüm İşlemler ({trades.length})
@@ -125,7 +132,7 @@ function TradingPanel({ backtestResults, selectedSymbol, selectedTimeframe }) {
               </Table>
             </TableContainer>
           </Grid>
-        </Grid>
+        </Box>
       </Paper>
     </Grid>
   );

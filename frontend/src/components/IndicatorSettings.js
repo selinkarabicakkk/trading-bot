@@ -15,7 +15,10 @@ import {
   TextField,
   Box,
   Divider,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const AVAILABLE_INDICATORS = {
   rsi: {
@@ -122,7 +125,13 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
       <List>
         {activeIndicators.map((indicator) => (
           <React.Fragment key={indicator.id}>
-            <ListItem>
+            <ListItem
+              sx={{
+                backgroundColor: "#1a237e",
+                borderRadius: 1,
+                mb: 1,
+              }}
+            >
               <ListItemText
                 primary={AVAILABLE_INDICATORS[indicator.type].name}
                 secondary={Object.entries(indicator.params)
@@ -133,19 +142,44 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
                       }: ${value}`
                   )
                   .join(", ")}
+                sx={{
+                  "& .MuiListItemText-primary": {
+                    color: "#ffffff",
+                    fontWeight: "bold",
+                  },
+                  "& .MuiListItemText-secondary": {
+                    color: "#b3e5fc",
+                  },
+                }}
               />
               <ListItemSecondaryAction>
                 <Button
                   size="small"
+                  variant="contained"
                   onClick={() => handleSettingsOpen(indicator)}
-                  sx={{ mr: 1 }}
+                  sx={{
+                    mr: 1,
+                    backgroundColor: "rgba(25, 118, 210, 0.2)",
+                    "&:hover": {
+                      backgroundColor: "rgba(25, 118, 210, 0.3)",
+                    },
+                    fontWeight: "medium",
+                  }}
                 >
                   Ayarlar
                 </Button>
                 <Button
                   size="small"
+                  variant="contained"
                   color="error"
                   onClick={() => handleRemoveIndicator(indicator.id)}
+                  sx={{
+                    backgroundColor: "rgba(211, 47, 47, 0.2)",
+                    "&:hover": {
+                      backgroundColor: "rgba(211, 47, 47, 0.3)",
+                    },
+                    fontWeight: "medium",
+                  }}
                 >
                   Sil
                 </Button>
@@ -164,15 +198,24 @@ const IndicatorSettings = ({ onIndicatorsChange }) => {
       >
         <DialogTitle>İndikatör Ekle</DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            {Object.entries(AVAILABLE_INDICATORS).map(([key, indicator]) => (
-              <Grid item xs={12} sm={6} key={key}>
+          <Grid container spacing={2}>
+            {Object.entries(AVAILABLE_INDICATORS).map(([type, config]) => (
+              <Grid item xs={12} sm={6} md={4} key={type}>
                 <Button
-                  variant="outlined"
                   fullWidth
-                  onClick={() => handleAddIndicator(key)}
+                  variant="contained"
+                  onClick={() => handleAddIndicator(type)}
+                  sx={{
+                    backgroundColor: "#1a237e",
+                    color: "#ffffff",
+                    "&:hover": {
+                      backgroundColor: "#283593",
+                    },
+                    fontWeight: "bold",
+                    py: 1.5,
+                  }}
                 >
-                  {indicator.name}
+                  {config.name}
                 </Button>
               </Grid>
             ))}

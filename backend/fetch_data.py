@@ -9,22 +9,42 @@ def convert_interval(interval: str) -> str:
     """Interval dönüşümü"""
     interval_map = {
         "1": "1m",
-        "5": "5m",
         "15": "15m",
-        "30": "30m",
         "60": "1h",
         "240": "4h",
         "D": "1d",
-        "W": "1w",
-        "M": "1M"
+        "1d": "1d",  # Doğrudan gelen günlük interval için
+        "1h": "1h",  # Doğrudan gelen saatlik interval için
+        "15m": "15m",  # Doğrudan gelen 15 dakikalık interval için
+        "4h": "4h",   # Doğrudan gelen 4 saatlik interval için
+        "1m": "1m"    # Doğrudan gelen 1 dakikalık interval için
     }
     mapped_interval = interval_map.get(interval)
     if not mapped_interval:
-        logger.warning(f"Bilinmeyen interval: {interval}, varsayılan olarak 1d kullanılıyor")
-        return "1d"
+        logger.warning(f"Bilinmeyen interval: {interval}, varsayılan olarak 1m kullanılıyor")
+        return "1m"  # Varsayılan olarak 1 dakika
     return mapped_interval
 
-def fetch_data(symbol: str, interval: str = "1d", limit: int = 1000) -> Optional[pd.DataFrame]:
+def calculate_limit_for_4_months(interval: str) -> int:
+    """4 aylık veri için gereken limit değerini hesapla"""
+    # 4 ay = 120 gün
+    minutes_in_4_months = 120 * 24 * 60  # 120 gün * 24 saat * 60 dakika
+    
+    interval_minutes = {
+        "1m": 1,     # 1 dakika
+        "15m": 15,   # 15 dakika
+        "1h": 60,    # 1 saat
+        "4h": 240,   # 4 saat
+        "1d": 1440   # 1 gün
+    }
+    
+    minutes = interval_minutes.get(interval, 1)  # Varsayılan olarak 1 dakika
+    limit = min(minutes_in_4_months // minutes, 1000)  # Binance limiti 1000
+    
+    logger.info(f"4 aylık veri için {interval} interval'ında {limit} mum gerekiyor")
+    return limit
+
+def fetch_data(symbol: str, interval: str = "1d", limit: int = None) -> Optional[pd.DataFrame]:
     """Binance'den veri çek"""
     try:
         logger.info(f"Veri çekme başladı: {symbol} - {interval}")
@@ -32,6 +52,10 @@ def fetch_data(symbol: str, interval: str = "1d", limit: int = 1000) -> Optional
         # Interval dönüşümü
         binance_interval = convert_interval(interval)
         logger.info(f"Dönüştürülen interval: {binance_interval}")
+        
+        # Limit belirtilmemişse 4 aylık veri için hesapla
+        if limit is None:
+            limit = calculate_limit_for_4_months(binance_interval)
         
         # Mainnet'den veri çek
         klines = client.get_klines(

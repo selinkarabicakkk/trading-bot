@@ -7,19 +7,13 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# .env dosyasından API anahtarlarını yükle
-load_dotenv()
-
-# Binance API Key ve Secret
-api_key = os.getenv('BINANCE_API_KEY', '')
-api_secret = os.getenv('BINANCE_API_SECRET', '')
-
-if not api_key or not api_secret:
-    logger.warning("API anahtarları bulunamadı. Test modu kullanılacak.")
+# API anahtarları
+api_key = "2HJKDiBf7MXZ2KpQWlniLxsOzZOscFoFjkjRCTgyeey1vF78VkQqa2h2RAJGXpF9"
+api_secret = "Soxv6kp2npt9uKkdfaZmzqYb3hRnN69tsqlzkQ7S9lTPeZVHSqOTot7mBG1ZzxVU"
 
 # Client oluştur
 client = Client(
-    api_key, 
+    api_key,
     api_secret,
     tld='com',
     testnet=False  # Mainnet kullan

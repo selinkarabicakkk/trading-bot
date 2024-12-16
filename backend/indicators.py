@@ -33,21 +33,34 @@ def calculate_rsi(df: pd.DataFrame, period: int = 14, overbought: int = 70, over
         logger.error(f"RSI hesaplama hatası: {str(e)}")
         return df
 
-def calculate_sma(df: pd.DataFrame, period: int = 20) -> pd.DataFrame:
-    """SMA hesaplama"""
+def calculate_sma(df: pd.DataFrame, params: Dict) -> pd.DataFrame:
+    """SMA hesapla"""
     try:
-        df[f'SMA_{period}'] = df['close'].rolling(window=period).mean()
+        period = int(params.get("period", 20))
+        logger.info(f"SMA hesaplanıyor - Period: {period}")
+        
+        # SMA hesapla
+        df['sma'] = df['close'].rolling(window=period).mean()
         
         # SMA sinyalleri
         df['sma_signal'] = 0
-        df.loc[df['close'] > df[f'SMA_{period}'], 'sma_signal'] = 1  # Fiyat SMA üzerinde - Alış sinyali
-        df.loc[df['close'] < df[f'SMA_{period}'], 'sma_signal'] = -1  # Fiyat SMA altında - Satış sinyali
         
-        logger.info(f"SMA hesaplandı - Period: {period}")
+        # Fiyat SMA'yı yukarı keserse alış
+        df.loc[(df['close'] > df['sma']) & (df['close'].shift(1) <= df['sma'].shift(1)), 'sma_signal'] = 1
+        # Fiyat SMA'yı aşağı keserse satış
+        df.loc[(df['close'] < df['sma']) & (df['close'].shift(1) >= df['sma'].shift(1)), 'sma_signal'] = -1
+        
+        # Son değerleri logla
+        last_idx = df.index[-1]
+        logger.info(f"Son SMA değerleri - SMA: {df['sma'].iloc[-1]:.2f}, Fiyat: {df['close'].iloc[-1]:.2f}")
+        if df['sma_signal'].iloc[-1] != 0:
+            logger.info(f"SMA Sinyal üretildi: {'AL' if df['sma_signal'].iloc[-1] == 1 else 'SAT'}")
+        
         return df
+        
     except Exception as e:
         logger.error(f"SMA hesaplama hatası: {str(e)}")
-        return df
+        raise
 
 def calculate_ema(df, periods=[20, 50, 200]):
     """EMA hesaplama"""
@@ -55,27 +68,52 @@ def calculate_ema(df, periods=[20, 50, 200]):
         df[f'EMA_{period}'] = df['close'].ewm(span=period, adjust=False).mean()
     return df
 
-def calculate_macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
-    """MACD hesaplama"""
+def calculate_macd(df: pd.DataFrame, params: Dict) -> pd.DataFrame:
+    """MACD hesapla"""
     try:
-        exp1 = df['close'].ewm(span=fast, adjust=False).mean()
-        exp2 = df['close'].ewm(span=slow, adjust=False).mean()
-        df['MACD'] = exp1 - exp2
-        df['Signal'] = df['MACD'].ewm(span=signal, adjust=False).mean()
-        df['MACD_Hist'] = df['MACD'] - df['Signal']
+        fast_period = int(params.get("fast_period", 12))
+        slow_period = int(params.get("slow_period", 26))
+        signal_period = int(params.get("signal_period", 9))
+        
+        logger.info(f"MACD hesaplanıyor - Fast: {fast_period}, Slow: {slow_period}, Signal: {signal_period}")
+        
+        # MACD Line = 12-period EMA - 26-period EMA
+        exp1 = df['close'].ewm(span=fast_period, adjust=False).mean()
+        exp2 = df['close'].ewm(span=slow_period, adjust=False).mean()
+        macd_line = exp1 - exp2
+        
+        # Signal Line = 9-period EMA of MACD Line
+        signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+        
+        # MACD Histogram = MACD Line - Signal Line
+        macd_hist = macd_line - signal_line
+        
+        df['macd'] = macd_line
+        df['macd_signal'] = signal_line
+        df['macd_hist'] = macd_hist
         
         # MACD sinyalleri
-        df['macd_signal'] = 0
-        # MACD çizgisi sinyal çizgisini yukarı keserse alış
-        df.loc[(df['MACD'] > df['Signal']) & (df['MACD'].shift(1) <= df['Signal'].shift(1)), 'macd_signal'] = 1
-        # MACD çizgisi sinyal çizgisini aşağı keserse satış
-        df.loc[(df['MACD'] < df['Signal']) & (df['MACD'].shift(1) >= df['Signal'].shift(1)), 'macd_signal'] = -1
+        df['macd_signal_line'] = 0
         
-        logger.info(f"MACD hesaplandı - Fast: {fast}, Slow: {slow}, Signal: {signal}")
+        # MACD çizgisinin sinyal çizgisini yukarı kesmesi = Alış
+        buy_signal = (macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1))
+        # MACD çizgisinin sinyal çizgisini aşağı kesmesi = Satış
+        sell_signal = (macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1))
+        
+        df.loc[buy_signal, 'macd_signal_line'] = 1
+        df.loc[sell_signal, 'macd_signal_line'] = -1
+        
+        # Son değerleri logla
+        last_idx = df.index[-1]
+        logger.info(f"Son MACD değerleri - Line: {macd_line[last_idx]:.2f}, Signal: {signal_line[last_idx]:.2f}, Hist: {macd_hist[last_idx]:.2f}")
+        if df['macd_signal_line'].iloc[-1] != 0:
+            logger.info(f"MACD Sinyal üretildi: {'AL' if df['macd_signal_line'].iloc[-1] == 1 else 'SAT'}")
+        
         return df
+        
     except Exception as e:
         logger.error(f"MACD hesaplama hatası: {str(e)}")
-        return df
+        raise
 
 def calculate_supertrend(df, period=10, multiplier=3):
     """SuperTrend hesaplama"""
@@ -180,14 +218,10 @@ def apply_indicators(df: pd.DataFrame, indicator_type: str, params: Dict = None)
             df = calculate_rsi(df, period, overbought, oversold)
             
         elif indicator_type == "macd":
-            fast_period = params.get("fast_period", 12)
-            slow_period = params.get("slow_period", 26)
-            signal_period = params.get("signal_period", 9)
-            df = calculate_macd(df, fast_period, slow_period, signal_period)
+            df = calculate_macd(df, params)
             
         elif indicator_type == "sma":
-            period = params.get("period", 20)
-            df = calculate_sma(df, period)
+            df = calculate_sma(df, params)
         else:
             logger.warning(f"Desteklenmeyen indikatör tipi: {indicator_type}")
 
